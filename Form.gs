@@ -1,7 +1,7 @@
 const SPREADSHEET_ID = '1LfdsEiZjZY3phnxNxAgg8UItwN9K1qLDJX4y48zLIfs';
 
 function doGet() {
-  return HtmlService.createHtmlOutputFromFile('Index')
+  return HtmlService.createHtmlOutputFromFile('index')
     .setTitle('Form Permintaan WH - Murinda')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
