@@ -563,7 +563,7 @@
         } else {
           alert("Gagal Menyimpan: " + res.message);
           btnSave.disabled = false;
-          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
+          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Kirim Permintaan';
         }
       })
       .catch(err => {
@@ -588,12 +588,12 @@
           addRow(); 
           
           btnSave.disabled = false;
-          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
+          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Kirim Permintaan';
         })
         .catch(() => {
           gunakanDataDummy();
           btnSave.disabled = false;
-          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
+          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Kirim Permintaan';
         });
     }
   </script>
