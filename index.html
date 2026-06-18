@@ -291,6 +291,11 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
+    // =========================================================================
+    // PASTE KAN LINK WEB APP HASIL DEPLOY DI SINI:
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbypdohAAbxO0q-6CjHeYU6HMNWr6pVyaPSGyyYGDw5cZ5kltj9CXgtl16MpOMfxRQdgqw/exec";
+    // =========================================================================
+
     let stockData = [];
     let html5QrcodeScanner = null;
     let targetInputRow = null;
@@ -328,29 +333,48 @@
 
     window.onload = () => {
       setWaktuSekarang();
-      try {
-        google.script.run.withSuccessHandler(res => {
+      muatDataAwalRealtime();
+    };
+
+    // Fungsi Fetch data Real-time pengganti google.script.run
+    function muatDataAwalRealtime() {
+      if (!WEB_APP_URL || WEB_APP_URL === "TEMPEL_URL_WEB_APP_ANDA_DI_SINI") {
+        console.warn("Membuka dengan data simulasi (URL API belum dipasang).");
+        gunakanDataDummy();
+        return;
+      }
+
+      fetch(`${WEB_APP_URL}?action=getInitialData`)
+        .then(response => response.json())
+        .then(res => {
           stockData = res.stock;
           document.getElementById('no').value = res.newNo;
           siapkanDatalist();
+          // Kosongkan baris lama jika ada, lalu isi satu baris awal
+          document.querySelector('#tblBarang tbody').innerHTML = '';
           addRow();
-        }).getInitialData();
-      } catch (e) {
-        // Data Dummy untuk pratinjau
-        stockData = [
-          { id: "BRG001", nama: "Besi Plat 10mm", ukuran: "10mm", sisa: 50 },
-          { id: "BRG002", nama: "Baut Baja Ringan", ukuran: "M8", sisa: 100 },
-          { id: "BRG003", nama: "Cat Anti Karat", ukuran: "25 Kg", sisa: 5 }
-        ];
-        document.getElementById('no').value = "REQ-001";
-        siapkanDatalist();
-        addRow();
-      }
-    };
+        })
+        .catch(err => {
+          console.error("Gagal terhubung dengan real-time database:", err);
+          alert("Gagal sinkronisasi data sheet. Menggunakan mode simulasi offline.");
+          gunakanDataDummy();
+        });
+    }
+
+    function gunakanDataDummy() {
+      stockData = [
+        { id: "BRG001", nama: "Besi Plat 10mm", ukuran: "10mm", sisa: 50 },
+        { id: "BRG002", nama: "Baut Baja Ringan", ukuran: "M8", sisa: 100 },
+        { id: "BRG003", nama: "Cat Anti Karat", ukuran: "25 Kg", sisa: 5 }
+      ];
+      document.getElementById('no').value = "REQ-001";
+      siapkanDatalist();
+      document.querySelector('#tblBarang tbody').innerHTML = '';
+      addRow();
+    }
 
     function siapkanDatalist() {
       const list = document.getElementById('listBarang');
-      // Menambahkan keterangan Sisa Stok di Dropdown Data List
       list.innerHTML = stockData.map(s => `<option value="${s.id}">${s.id} - ${s.nama} (Sisa: ${s.sisa})</option>`).join('');
     }
 
@@ -382,14 +406,13 @@
       hitungTotal();
     }
 
-    // Fungsi Pengecekan Dinamis Stok saat diketik manual
     function cekStok(el) {
       const maxStock = parseInt(el.getAttribute('max'));
       let currentVal = parseInt(el.value);
       
       if (!isNaN(maxStock) && currentVal > maxStock) {
         alert(`Peringatan: Jumlah melampaui persediaan.\nSisa stok untuk barang ini hanya tersedia ${maxStock}.`);
-        el.value = maxStock; // Kembalikan nilai ke angka paling maksimal
+        el.value = maxStock;
       }
       hitungTotal();
     }
@@ -403,17 +426,14 @@
         row.querySelector('.nama').value = selectedItem.nama;
         row.querySelector('.ukuran').value = selectedItem.ukuran;
         
-        // Simpan sisa stok maksimum ke atribut dan jadikan placeholder info
         inputJml.setAttribute('max', selectedItem.sisa);
         inputJml.placeholder = `Max: ${selectedItem.sisa}`;
         
-        // Jika pengguna sudah mengetik jumlah yang melampaui sisa stok terbaru
         if (inputJml.value && parseInt(inputJml.value) > selectedItem.sisa) {
            inputJml.value = selectedItem.sisa;
            alert(`Peringatan: Stok hanya tersedia ${selectedItem.sisa}. Jumlah otomatis disesuaikan.`);
            hitungTotal();
         }
-        
         inputJml.focus(); 
       } else {
         row.querySelector('.nama').value = '';
@@ -439,7 +459,6 @@
       document.getElementById('grandTotalKuantitas').innerText = grandTotal.toLocaleString('id-ID');
     }
 
-    /* === INTEGRASI BARCODE SCANNER (KAMERA) === */
     function bukaScanner(btn) {
       targetInputRow = btn.previousElementSibling; 
       const modal = new bootstrap.Modal(document.getElementById('scannerModal'));
@@ -472,7 +491,7 @@
       stopScanner();
     });
 
-    /* === SIMPAN DATA === */
+    // Fungsi Simpan Menggunakan Fetch API POST dengan redirect handler (CORS Safe)
     function simpan() {
       const dibuat = document.getElementById('dibuat').value;
 
@@ -518,36 +537,60 @@
         items: itemsToSave
       };
       
-      try {
-        google.script.run.withSuccessHandler(res => {
-          if(res === "Sukses") {
-            alert("Data Permintaan WH Berhasil Disimpan!");
-            
-            // Pembaruan Background tanpa Reload
-            // Mengambil kembali Nomor Antrean dan Sisa Stok terbaru setelah disimpan
-            google.script.run.withSuccessHandler(newData => {
-              stockData = newData.stock;
-              document.getElementById('no').value = newData.newNo;
-              siapkanDatalist();
-              
-              // Mengosongkan form ke keadaan semula secara mulus
-              const tbody = document.querySelector('#tblBarang tbody');
-              tbody.innerHTML = ''; 
-              addRow(); 
-              
-              btnSave.disabled = false;
-              btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
-            }).getInitialData();
-          }
-        }).processForm(data);
-      } catch (e) {
-        alert("Simulasi Simpan Sukses. Form dikosongkan.");
-        const tbody = document.querySelector('#tblBarang tbody');
-        tbody.innerHTML = '';
-        addRow();
+      if (!WEB_APP_URL || WEB_APP_URL === "TEMPEL_URL_WEB_APP_ANDA_DI_SINI") {
+         alert("Simulasi Simpan Sukses (Mode Offline). Form dikosongkan.");
+         resetFormSetelahSimpan();
+         return;
+      }
+
+      // Kirim data ke Google Sheets API secara asynchronous
+      fetch(WEB_APP_URL, {
+        method: "POST",
+        mode: "cors",
+        headers: { "Content-Type": "text/plain" }, // Menggunakan text/plain mencegah CORS preflight error di GAS
+        body: JSON.stringify({ action: "simpan", payload: data })
+      })
+      .then(response => response.json())
+      .then(res => {
+        if(res.status === "Sukses") {
+          alert("Data Permintaan WH Berhasil Disimpan ke Spreadsheet!");
+          resetFormSetelahSimpan();
+        } else {
+          alert("Gagal Menyimpan: " + res.message);
+          btnSave.disabled = false;
+          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
+        }
+      })
+      .catch(err => {
+        console.error("Error saat menyimpan data:", err);
+        alert("Terjadi gangguan jaringan saat menyimpan data.");
         btnSave.disabled = false;
         btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
-      }
+      });
+    }
+
+    function resetFormSetelahSimpan() {
+      const btnSave = document.getElementById('btnSimpan');
+      // Memperbarui sisa stock & No REQ terbaru langsung dari sheet setelah sukses simpan
+      fetch(`${WEB_APP_URL}?action=getInitialData`)
+        .then(response => response.json())
+        .then(newData => {
+          stockData = newData.stock;
+          document.getElementById('no').value = newData.newNo;
+          siapkanDatalist();
+          
+          const tbody = document.querySelector('#tblBarang tbody');
+          tbody.innerHTML = ''; 
+          addRow(); 
+          
+          btnSave.disabled = false;
+          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
+        })
+        .catch(() => {
+          gunakanDataDummy();
+          btnSave.disabled = false;
+          btnSave.innerHTML = '<i class="bi bi-send-check-fill"></i> Simpan Permintaan';
+        });
     }
   </script>
 </body>
